@@ -1,0 +1,9 @@
+{
+    "duration_institute_fallback": 4,
+    "duration_university_fallback": 5,
+    "duration_max_valid": 10,
+    "admission_max_valid": 90,
+    "income_fallback": 1100,
+    "cost_fallback": 0,
+    "admission_fallback": 0
+}
