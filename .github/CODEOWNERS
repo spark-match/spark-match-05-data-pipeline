@@ -1,85 +1,12 @@
-# CODEOWNERS — Spark Match Data Pipeline (05)
+﻿# CODEOWNERS — Spark Match Data Pipeline (05)
 #
-# Define quién revisa los PRs en cada área del repositorio.
-# Política: para PRs a `dev`, 1 aprobación del CODE OWNER técnico es suficiente.
-# product-owners se solicita manualmente al promover a `main`.
-
-# =============================================================================
-# Catch-all: ai-devs + backend-devs aprueban cambios del pipeline
-# =============================================================================
-*                                          @spark-match/ai-devs @spark-match/backend-devs
-
-# =============================================================================
-# Orquestación (Airflow / DAGs)
-# =============================================================================
-/dags/                                     @spark-match/ai-devs
-/dags/**/*                                 @spark-match/ai-devs
-/airflow/                                  @spark-match/ai-devs @spark-match/devops
-/airflow/**/*                              @spark-match/ai-devs @spark-match/devops
-
-# =============================================================================
-# Transformación (dbt models)
-# =============================================================================
-/dbt/                                      @spark-match/ai-devs @spark-match/backend-devs
-/dbt/**/*                                  @spark-match/ai-devs @spark-match/backend-devs
-/dbt/models/                               @spark-match/ai-devs
-/dbt/models/**/*                           @spark-match/ai-devs
-
-# =============================================================================
-# Ingesta de datos (extractors, connectors)
-# =============================================================================
-/extract/                                  @spark-match/backend-devs
-/extract/**/*                              @spark-match/backend-devs
-/load/                                     @spark-match/backend-devs
-/load/**/*                                 @spark-match/backend-devs
-
-# =============================================================================
-# Configuración de Python
-# =============================================================================
-/pyproject.toml                            @spark-match/ai-devs @spark-match/devops
-/uv.lock                                   @spark-match/ai-devs @spark-match/devops
-/.python-version                           @spark-match/ai-devs @spark-match/devops
-/requirements.txt                          @spark-match/ai-devs @spark-match/devops
-
-# =============================================================================
-# Tests y calidad
-# =============================================================================
-/tests/                                    @spark-match/ai-devs @spark-match/qa
-/tests/**/*                                @spark-match/ai-devs @spark-match/qa
-
-# =============================================================================
-# Documentación
-# =============================================================================
-/README.md                                 @spark-match/ai-devs
-/docs/                                     @spark-match/ai-devs
-/docs/**/*                                 @spark-match/ai-devs
-
-# =============================================================================
-# Configuración de GitHub — CODEOWNERS, workflows, templates
-# =============================================================================
-/.github/                                  @spark-match/devops
-/.github/CODEOWNERS                        @spark-match/devops
-/.github/workflows/                        @spark-match/devops
-/.github/workflows/**/*                    @spark-match/devops
-/.github/pull_request_template.md          @spark-match/devops
-
-# =============================================================================
-# Datos y artefactos
-# =============================================================================
-# /data/ se mantiene fuera del repo (gitignored); los raw/processed
-# viven en S3 gestionado por Terraform en 02-infrastructure.
-
-# =============================================================================
-# Notas operativas
-# =============================================================================
-# 1. CODE OWNERS principales: ai-devs (Niko + ahincho) + backend-devs
-#    (Andy + ahincho). En dev, 1 aprobación de cualquier CODE OWNER es
-#    suficiente. En main, se debe agregar manualmente a product-owners.
+# Política de aprobación (ADR-003 branch-based deployment):
+# - dev: 1 aprobación del CODE OWNER técnico (ai-devs) es suficiente.
+# - main: 1 CODE OWNER review (ai-devs) + reviewer manual de
+#   @spark-match/product-owners (solicitado por el autor al abrir el PR).
 #
-# 2. dbt models: ai-devs aprueba la lógica de transformación.
-#    Extractors/loaders: backend-devs aprueba la conectividad a fuentes.
-#
-# 3. El autor del PR no puede aprobar su propio PR, ni siquiera siendo
-#    CODE OWNER (regla de GitHub). Para PRs de ahincho, Andy o Niko
-#    pueden aprobar (los 3 son CODE OWNERS).
-# =============================================================================
+# CODE OWNERS del repo: @spark-match/ai-devs
+#   Miembros actuales: ahincho, nikolaiasencios
+
+# Catch-all: cualquier archivo es responsabilidad de ai-devs
+*       @spark-match/ai-devs
