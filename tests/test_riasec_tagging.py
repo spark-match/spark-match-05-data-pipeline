@@ -1,6 +1,7 @@
 """Tests for the RIASEC tagging step.
 
-The Bedrock client is faked, so these run without AWS credentials.
+The Bedrock model is faked (a stand-in for ``ChatBedrock``), so these run
+without ``langchain-aws`` or AWS credentials.
 """
 
 from pathlib import Path
@@ -23,44 +24,34 @@ from src.riasec_tagging import (  # noqa: E402
 )
 
 # -----------------------------------------------------------------------------
-# Fakes
+# Fakes  (mimic langchain_aws.ChatBedrock: `.invoke(prompt)` -> obj with `.content`)
 # -----------------------------------------------------------------------------
 
 
-class FakeBlock:
-    def __init__(self, text):
-        self.type = "text"
-        self.text = text
+class FakeMessage:
+    def __init__(self, content):
+        self.content = content
 
 
-class FakeResponse:
-    def __init__(self, text):
-        self.content = [FakeBlock(text)]
+class FakeChatBedrock:
+    """Replays a queued script; a str is returned as content, an Exception raised."""
 
-
-class FakeMessages:
-    """Replays a queued script of responses; a str is returned, an Exception raised."""
-
-    def __init__(self, script):
+    def __init__(self, script=()):
         self.script = list(script)
         self.calls = 0
 
-    def create(self, **kwargs):
+    def invoke(self, prompt):
         self.calls += 1
-        step = self.script.pop(0) if self.script else self.script_default()
+        step = self.script.pop(0) if self.script else self._default()
 
         if isinstance(step, Exception):
             raise step
 
-        return FakeResponse(step)
+        return FakeMessage(step)
 
-    def script_default(self):
+    @staticmethod
+    def _default():
         return json.dumps({"riasec_profile": "IRC", "confidence": 0.9})
-
-
-class FakeClient:
-    def __init__(self, script=()):
-        self.messages = FakeMessages(script)
 
 
 def ok(code="IRC"):
@@ -110,38 +101,57 @@ def test_load_unique_careers_missing_file(tmp_path):
 
 
 def test_request_riasec_code_parses_a_valid_response():
-    client = FakeClient([ok("ISR")])
+    llm = FakeChatBedrock([ok("ISR")])
 
-    result = request_riasec_code(client, "Medicina", "Salud")
+    result = request_riasec_code(llm, "Medicina", "Salud")
 
     assert result["riasec_profile"] == "ISR"
 
 
-def test_request_riasec_code_retries_then_succeeds():
-    client = FakeClient([RuntimeError("boom"), ok("AIR")])
+def test_request_riasec_code_strips_markdown_fences():
+    fenced = "```json\n" + ok("AIR") + "\n```"
+    llm = FakeChatBedrock([fenced])
 
-    result = request_riasec_code(client, "Arquitectura", "Diseno")
+    result = request_riasec_code(llm, "Arquitectura", "Diseno")
 
     assert result["riasec_profile"] == "AIR"
-    assert client.messages.calls == 2
+
+
+def test_request_riasec_code_retries_then_succeeds():
+    llm = FakeChatBedrock([RuntimeError("boom"), ok("AIR")])
+
+    result = request_riasec_code(llm, "Arquitectura", "Diseno")
+
+    assert result["riasec_profile"] == "AIR"
+    assert llm.calls == 2
+
+
+def test_request_riasec_code_rejects_invalid_code_and_retries():
+    # "XYZ" is not a valid Holland code -> should be retried, not accepted.
+    llm = FakeChatBedrock([ok("XYZ"), ok("SIA")])
+
+    result = request_riasec_code(llm, "Psicologia", "Sociales")
+
+    assert result["riasec_profile"] == "SIA"
+    assert llm.calls == 2
 
 
 def test_request_riasec_code_gives_up_after_three_attempts():
-    client = FakeClient([RuntimeError("boom")] * 3)
+    llm = FakeChatBedrock([RuntimeError("boom")] * 3)
 
-    assert request_riasec_code(client, "X", "Y") is None
-    assert client.messages.calls == 3
+    assert request_riasec_code(llm, "X", "Y") is None
+    assert llm.calls == 3
 
 
 def test_tag_careers_marks_failures_as_pending(features):
     careers = load_unique_careers(features)  # Enfermeria, Redes, Software
 
     # Enfermeria succeeds, Redes fails 3x, Software succeeds.
-    client = FakeClient(
+    llm = FakeChatBedrock(
         [ok("SIA")] + [RuntimeError("boom")] * 3 + [ok("IRC")]
     )
 
-    tagged = tag_careers(careers, client)
+    tagged = tag_careers(careers, llm)
 
     by_career = tagged.set_index("career")
     assert by_career.loc["Enfermeria", "riasec_source"] == "llm_tagged"

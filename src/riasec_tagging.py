@@ -4,6 +4,9 @@ The economic dataset from Ponte en Carrera has no vocational dimension, so the
 affinity term of the scoring formula cannot be computed. This module fills that
 gap: it tags each of the ~554 unique careers once (not the 6,208 career x
 institution rows) and leaves the join to the caller.
+
+Uses ``langchain_aws.ChatBedrock`` (same Bedrock client as the agent in
+``08-deep-agent``) so the team shares one auth path and one model-id format.
 """
 
 from itertools import permutations
@@ -41,8 +44,11 @@ VALIDATION_SAMPLE_FILE = PROJECT_ROOT / "data" / "riasec_validation_sample.csv"
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
-# Bedrock model ids carry the `anthropic.` prefix.
-LLM_MODEL = os.getenv("LLM_MODEL", "anthropic.claude-opus-4-8")
+# ChatBedrock uses the raw Bedrock model / inference-profile id (no `anthropic.`
+# prefix). Same format the agent uses in `08-deep-agent`.
+BEDROCK_MODEL_ID = os.getenv(
+    "BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514"
+)
 
 MAX_RETRIES = 3
 
@@ -50,28 +56,16 @@ VALIDATION_SAMPLE_SIZE = 300
 VALIDATION_SEED = 42
 
 # Every valid Holland code: 3 distinct letters, order matters (120 in total).
-RIASEC_CODES = ["".join(code) for code in permutations("RIASEC", 3)]
-
-# Constraining the response to this enum makes an invalid code unrepresentable.
-RIASEC_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "riasec_profile": {"type": "string", "enum": RIASEC_CODES},
-        "confidence": {"type": "number"},
-    },
-    "required": ["riasec_profile", "confidence"],
-    "additionalProperties": False,
-}
+RIASEC_CODES = frozenset("".join(code) for code in permutations("RIASEC", 3))
 
 SYSTEM_PROMPT = (
     "Eres un orientador vocacional experto en el modelo RIASEC de Holland. "
     "Asignas a cada carrera su código Holland de 3 letras, ordenado de la "
-    "dimensión más dominante a la menos dominante.\n\n"
+    "dimensión más dominante a la menos dominante.\n"
     "Dimensiones: R=Realista (manual, mecánico), I=Investigativo (analítico, "
     "científico), A=Artístico (creativo, expresivo), S=Social (ayudar, "
     "enseñar), E=Emprendedor (liderar, persuadir), C=Convencional (organizar, "
-    "detalle).\n\n"
-    "`confidence` es tu certeza en el código asignado, de 0 a 1."
+    "detalle)."
 )
 
 # Seed examples reused from the agent catalog (repo 08-deep-agent).
@@ -93,20 +87,23 @@ SEED_EXAMPLES = [
 # -----------------------------------------------------------------------------
 
 
-def get_bedrock_client():
+def build_llm(model_id: str | None = None):
     """
-    Build an Anthropic client backed by Amazon Bedrock.
+    Build the Bedrock chat model (same client as the agent: ``ChatBedrock``).
 
-    Imported lazily so the module stays usable (and testable) without the
-    `anthropic[bedrock]` extra or AWS credentials installed.
+    Imported lazily so the module stays usable (and testable with a fake LLM)
+    without ``langchain-aws`` or AWS credentials installed.
 
     Returns
     -------
-    AnthropicBedrockMantle
+    ChatBedrock
     """
-    from anthropic import AnthropicBedrockMantle
+    from langchain_aws import ChatBedrock
 
-    return AnthropicBedrockMantle(aws_region=AWS_REGION)
+    return ChatBedrock(
+        model_id=model_id or BEDROCK_MODEL_ID,
+        region_name=AWS_REGION,
+    )
 
 
 def load_unique_careers(features_file: Path) -> pd.DataFrame:
@@ -152,7 +149,7 @@ def load_unique_careers(features_file: Path) -> pd.DataFrame:
 
 def build_prompt(career: str, career_family: str) -> str:
     """
-    Build a few-shot prompt for a single career.
+    Build a single few-shot prompt string (same style as the agent's judge).
     """
     examples = "\n".join(
         f"- Carrera: {name} | Familia: {family} -> {code}"
@@ -160,43 +157,55 @@ def build_prompt(career: str, career_family: str) -> str:
     )
 
     return (
+        f"{SYSTEM_PROMPT}\n\n"
         f"Ejemplos:\n{examples}\n\n"
         f"Asigna el código RIASEC de esta carrera:\n"
-        f"- Carrera: {career} | Familia: {career_family}"
+        f"- Carrera: {career} | Familia: {career_family}\n\n"
+        'Responde SOLO con este JSON, sin texto adicional:\n'
+        '{"riasec_profile": "XXX", "confidence": 0.0}\n'
+        "donde XXX son 3 letras distintas de RIASEC y confidence va de 0 a 1."
     )
 
 
-def request_riasec_code(client, career: str, career_family: str) -> dict | None:
+def _extract_json(text: str) -> dict:
+    """
+    Parse the model's reply into a dict, stripping ```` ``` ```` fences if present.
+
+    Mirrors the parsing in the agent's `SparkMatchJudge`.
+    """
+    cleaned = text.strip()
+
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+    return json.loads(cleaned)
+
+
+def request_riasec_code(llm, career: str, career_family: str) -> dict | None:
     """
     Ask the model for one career's Holland code.
 
-    The response is constrained to `RIASEC_SCHEMA`, so a successful call always
-    yields a valid 3-letter code. Returns None once the retries are exhausted.
+    Validates the returned code against `RIASEC_CODES`, so an invalid or
+    malformed answer is retried instead of poisoning the dataset. Returns None
+    once the retries are exhausted.
     """
     prompt = build_prompt(career, career_family)
 
     for attempt in range(1, MAX_RETRIES + 1):
 
         try:
-            response = client.messages.create(
-                model=LLM_MODEL,
-                max_tokens=2048,
-                system=SYSTEM_PROMPT,
-                thinking={"type": "adaptive"},
-                output_config={
-                    "effort": "low",
-                    "format": {"type": "json_schema", "schema": RIASEC_SCHEMA},
-                },
-                messages=[{"role": "user", "content": prompt}],
-            )
+            response = llm.invoke(prompt)
 
-            text = next(
-                block.text
-                for block in response.content
-                if block.type == "text"
-            )
+            text = response.content if hasattr(response, "content") else str(response)
 
-            return json.loads(text)
+            data = _extract_json(text)
+
+            code = str(data["riasec_profile"]).strip().upper()
+
+            if code not in RIASEC_CODES:
+                raise ValueError(f"invalid RIASEC code: {code!r}")
+
+            return {"riasec_profile": code, "confidence": data.get("confidence")}
 
         except Exception as error:
             logger.warning(
@@ -212,7 +221,7 @@ def request_riasec_code(client, career: str, career_family: str) -> dict | None:
     return None
 
 
-def tag_careers(careers_df: pd.DataFrame, client) -> pd.DataFrame:
+def tag_careers(careers_df: pd.DataFrame, llm) -> pd.DataFrame:
     """
     Tag every career, marking the ones the model could not resolve as pending.
 
@@ -228,7 +237,7 @@ def tag_careers(careers_df: pd.DataFrame, client) -> pd.DataFrame:
 
     for row in careers_df.itertuples(index=False):
 
-        result = request_riasec_code(client, row.career, row.career_family)
+        result = request_riasec_code(llm, row.career, row.career_family)
 
         if result is None:
             profiles.append(None)
@@ -355,7 +364,7 @@ def run_tagging() -> None:
 
     careers = load_unique_careers(FEATURES_FILE)
 
-    tagged = tag_careers(careers, get_bedrock_client())
+    tagged = tag_careers(careers, build_llm())
 
     tagged = apply_family_fallback(tagged)
 

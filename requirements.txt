@@ -1,6 +1,6 @@
 pandas==2.3.0
 openpyxl==3.1.5
 selenium==4.33.0
-anthropic[bedrock]==0.116.0
+langchain-aws>=1.6.1
 pytest==8.4.1
 flake8==7.3.0
