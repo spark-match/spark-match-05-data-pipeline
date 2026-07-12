@@ -42,15 +42,15 @@ def test_load_reads_excel(pec: PonteEnCarreraSource, project_data_dir: Path) -> 
     """Smoke test: PEC.load() should read a real Excel file successfully.
 
     project_data_dir is a session-scoped fixture that points to the
-    repo's `data/` directory, where the legacy `raw.xlsx` is checked in
-    for backward compat. This test will be removed in Fase 2 when DVC
-    takes over data tracking.
+    repo's `data/` directory, where the per-source raw file is checked
+    in for backward compat. This test will be removed in Fase 3 when
+    DVC takes over data tracking.
     """
-    legacy_raw = project_data_dir / "raw.xlsx"
-    if not legacy_raw.exists():
-        pytest.skip(f"Fixture not available: {legacy_raw}")
+    pec_raw = project_data_dir / "ponte_en_carrera" / "raw.xlsx"
+    if not pec_raw.exists():
+        pytest.skip(f"Fixture not available: {pec_raw}")
 
-    df = pec.load(legacy_raw)
+    df = pec.load(pec_raw)
     assert isinstance(df, pd.DataFrame)
     assert len(df) > 0
     assert len(df.columns) > 0
