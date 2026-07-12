@@ -1,15 +1,13 @@
-from pathlib import Path
 import logging
+from pathlib import Path
+
 import pandas as pd
 
 # -----------------------------------------------------------------------------
 # Logging
 # -----------------------------------------------------------------------------
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
 logger = logging.getLogger(__name__)
 
@@ -75,20 +73,11 @@ def load_raw_data(file_path: Path) -> pd.DataFrame:
     logger.info("Loading raw dataset...")
 
     if not file_path.exists():
-        raise FileNotFoundError(
-            f"Raw dataset not found: {file_path}"
-        )
+        raise FileNotFoundError(f"Raw dataset not found: {file_path}")
 
-    df = pd.read_excel(
-        file_path,
-        header=6
-    )
+    df = pd.read_excel(file_path, header=6)
 
-    logger.info(
-        "Dataset loaded successfully (%s rows, %s columns)",
-        len(df),
-        len(df.columns)
-    )
+    logger.info("Dataset loaded successfully (%s rows, %s columns)", len(df), len(df.columns))
 
     return df
 
@@ -108,19 +97,11 @@ def remove_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
     initial_rows = len(df)
 
-    df = df.dropna(
-        subset=[
-            "career",
-            "institution"
-        ]
-    )
+    df = df.dropna(subset=["career", "institution"])
 
     removed_rows = initial_rows - len(df)
 
-    logger.info(
-        "Removed %s empty rows",
-        removed_rows
-    )
+    logger.info("Removed %s empty rows", removed_rows)
 
     return df
 
@@ -132,39 +113,21 @@ def convert_data_types(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Converting numeric columns...")
 
     for col in NUMERIC_COLUMNS:
-
         if col in df.columns:
-
-            df[col] = pd.to_numeric(
-                df[col],
-                errors="coerce"
-            )
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
     return df
 
 
-def save_filtered_dataset(
-    df: pd.DataFrame,
-    output_path: Path
-) -> None:
+def save_filtered_dataset(df: pd.DataFrame, output_path: Path) -> None:
     """
     Save filtered dataset as CSV.
     """
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    df.to_csv(
-        output_path,
-        index=False,
-        encoding="utf-8-sig"
-    )
+    df.to_csv(output_path, index=False, encoding="utf-8-sig")
 
-    logger.info(
-        "Filtered dataset saved to %s",
-        output_path
-    )
+    logger.info("Filtered dataset saved to %s", output_path)
 
 
 def run_filtering() -> None:
@@ -177,10 +140,7 @@ def run_filtering() -> None:
 
     df = load_raw_data(RAW_FILE)
 
-    logger.info(
-        "Initial shape: %s",
-        df.shape
-    )
+    logger.info("Initial shape: %s", df.shape)
 
     df = standardize_columns(df)
 
@@ -188,15 +148,9 @@ def run_filtering() -> None:
 
     df = convert_data_types(df)
 
-    logger.info(
-        "Final shape: %s",
-        df.shape
-    )
+    logger.info("Final shape: %s", df.shape)
 
-    save_filtered_dataset(
-        df,
-        FILTERED_FILE
-    )
+    save_filtered_dataset(df, FILTERED_FILE)
 
     logger.info("=" * 60)
     logger.info("FILTERING PIPELINE FINISHED")
