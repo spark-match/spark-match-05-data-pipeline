@@ -128,8 +128,8 @@ snapshots/
 !configs/*.example.json
 !data/filtered.csv                      # Legacy files committed pre-DVC (will be removed in Phase 0)
 !data/features.csv
-!data/raw.xlsx
 !data/feature_config.json
+!data/ponte_en_carrera/raw.xlsx          # PEC source raw, tracked pre-DVC (will be DVC-tracked in Phase 2)
 
 # DVC
 .dvc/cache/                            # Local DVC cache (data lives in S3 remote)

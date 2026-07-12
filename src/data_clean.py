@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-RAW_FILE = PROJECT_ROOT / "data" / "raw.xlsx"
+RAW_FILE = PROJECT_ROOT / "data" / "ponte_en_carrera" / "raw.xlsx"
 FILTERED_FILE = PROJECT_ROOT / "data" / "filtered.csv"
 
 # -----------------------------------------------------------------------------
