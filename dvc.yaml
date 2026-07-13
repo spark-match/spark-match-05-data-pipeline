@@ -33,12 +33,15 @@
 stages:
   ingest:
     desc: >-
-      Pull raw data from the Ponte en Carrera (MINEDU) portal via Selenium.
-      Requires Chrome + chromedriver on PATH. This stage is OPTIONAL in
-      local dev: if data/ponte_en_carrera/raw.xlsx already exists from a
-      previous run or from the git-tracked baseline, you can skip ingest
-      and run `dvc repro clean features` directly.
+      DEPRECATED (2026-07-12): MINEDU is decommissioning the
+      ponteencarrera.minedu.gob.pe portal; the upstream returns HTTP 500.
+      The Python source raises SourceFetchError on fetch(). Stage is
+      marked frozen so `dvc repro` skips it automatically. Run
+      `dvc repro clean features` to reproduce downstream stages against
+      the historical raw.xlsx committed to git. Replacement investigation
+      tracked in src/sources/README.md.
     cmd: uv run python -m src.ingestion ponte_en_carrera
+    frozen: true
     deps:
       - src/__init__.py
       - src/config.py

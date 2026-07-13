@@ -3,12 +3,18 @@
 Usage:
     uv run python -m src.ingestion ponte_en_carrera
     uv run python -m src.ingestion                   # defaults to ponte_en_carrera
-    uv run python -m src.ingestion --list            # show registered sources
+    uv run python -m src.ingestion --list            # show active sources
+    uv run python -m src.ingestion --list --all      # include deprecated sources
+    uv run python -m src.ingestion --list-deprecated # show only deprecated sources
+
+Deprecated sources can still be invoked explicitly (e.g., for diagnostics),
+but the CLI prints a warning and the source's fetch() will likely raise.
+See src/sources/README.md for the status of each registered source.
 
 This module is intentionally thin: it parses argv, loads config, looks
 up the source class via the registry, and delegates to `source.run()`.
-All the actual work (Selenium scraping, file persistence, DataFrame
-loading) lives in the source's class under `src/sources/`.
+The actual data acquisition logic lives in each source's class under
+src/sources/.
 """
 
 from __future__ import annotations
@@ -18,7 +24,7 @@ import logging
 import sys
 
 from .config import load_config
-from .sources import UnknownSourceError, get_cls, list_sources
+from .sources import UnknownSourceError, get_cls, list_deprecated, list_sources
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +49,22 @@ def _build_source(source_name: str):
     raise UnknownSourceError(f"No wiring defined for source class {cls.__name__}")
 
 
+def _warn_if_deprecated(source_name: str, cls: type) -> None:
+    """Log a clear warning if the requested source is marked deprecated."""
+    if getattr(cls, "deprecated", False):
+        logger.warning(
+            "Source '%s' (%s) is DEPRECATED. Its fetch() will likely raise. "
+            "See src/sources/README.md for status and replacement candidates.",
+            source_name,
+            cls.__name__,
+        )
+
+
 def run(source_name: str) -> None:
     """Fetch + persist + load a single source."""
     logger.info("========== INGESTION START (source=%s) ==========", source_name)
+    cls = get_cls(source_name)
+    _warn_if_deprecated(source_name, cls)
     source = _build_source(source_name)
     result = source.run()
     logger.info(
@@ -58,6 +77,28 @@ def run(source_name: str) -> None:
     if result.snapshot_path:
         logger.info("Snapshot: %s", result.snapshot_path)
     logger.info("========== INGESTION FINISHED ==========")
+
+
+def _print_sources(
+    active: list[str], deprecated: list[str], *, show_deprecated_marker: bool
+) -> None:
+    if active:
+        print("Active sources:")
+        for name in active:
+            marker = " (deprecated)" if show_deprecated_marker and name in deprecated else ""
+            print(f"  - {name}{marker}")
+    else:
+        print("No active sources registered.")
+    if show_deprecated_marker and deprecated:
+        names_in_active = set(active)
+        only_deprecated = [n for n in deprecated if n not in names_in_active]
+        if only_deprecated:
+            print()
+            print(
+                "Deprecated sources (hidden from default --list, use --list-deprecated to inspect):"
+            )
+            for name in only_deprecated:
+                print(f"  - {name}")
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -77,6 +118,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Print registered source names and exit",
     )
     parser.add_argument(
+        "--all",
+        action="store_true",
+        help="With --list: include deprecated sources in the listing",
+    )
+    parser.add_argument(
+        "--list-deprecated",
+        action="store_true",
+        help="Print only deprecated source names and exit",
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -92,13 +143,18 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
     if args.list:
-        names = list_sources()
-        if names:
-            print("Registered sources:")
-            for name in names:
+        active = list_sources(include_deprecated=args.all)
+        deprecated = list_deprecated() if args.all else []
+        _print_sources(active, deprecated, show_deprecated_marker=args.all)
+        return 0
+    if args.list_deprecated:
+        deprecated = list_deprecated()
+        if deprecated:
+            print("Deprecated sources:")
+            for name in deprecated:
                 print(f"  - {name}")
         else:
-            print("No sources registered.")
+            print("No deprecated sources registered.")
         return 0
     try:
         run(args.source)

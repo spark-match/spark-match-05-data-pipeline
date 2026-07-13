@@ -70,7 +70,7 @@ def load_config() -> AppConfig:
         snapshot_dir=(root / os.environ.get("SNAPSHOT_DIR", "snapshots")).resolve(),
         pec_url=os.environ.get(
             "PEC_DOWNLOAD_URL",
-            "https://ponteencarrera.minedu.gob.pe/pec-portal-web/Home/DondeEstudiar",
+            "https://ponteencarrera.minedu.gob.pe/pec-portal-web/inicio/donde-estudiar",
         ),
         pec_timeout_seconds=int(os.environ.get("PEC_DOWNLOAD_TIMEOUT_SECONDS", "60")),
     )

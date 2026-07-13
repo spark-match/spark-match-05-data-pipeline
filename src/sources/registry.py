@@ -61,9 +61,22 @@ def get_cls(name: str) -> type[DataSource]:
     return _REGISTRY[name]
 
 
-def list_sources() -> list[str]:
-    """Return the sorted names of all registered sources."""
-    return sorted(_REGISTRY.keys())
+def list_sources(*, include_deprecated: bool = False) -> list[str]:
+    """Return the sorted names of registered sources.
+
+    Args:
+        include_deprecated: If False (default), sources whose class sets
+            `deprecated = True` are filtered out. Pass True to include them
+            (useful for diagnostics and the CLI --all flag).
+    """
+    if include_deprecated:
+        return sorted(_REGISTRY.keys())
+    return sorted(name for name, cls in _REGISTRY.items() if not getattr(cls, "deprecated", False))
+
+
+def list_deprecated() -> list[str]:
+    """Return the sorted names of registered sources marked deprecated."""
+    return sorted(name for name, cls in _REGISTRY.items() if getattr(cls, "deprecated", False))
 
 
 def snapshot() -> dict[str, type[DataSource]]:

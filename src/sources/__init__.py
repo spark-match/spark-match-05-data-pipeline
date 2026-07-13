@@ -23,7 +23,15 @@ from .exceptions import SourceError, SourceFetchError, SourceLoadError, UnknownS
 # Import concrete sources so their @register decorators run on package import.
 # Order does not matter; each source is independent.
 from .ponte_en_carrera import PonteEnCarreraSource
-from .registry import get_cls, list_sources, register, reset, restore, snapshot
+from .registry import (
+    get_cls,
+    list_deprecated,
+    list_sources,
+    register,
+    reset,
+    restore,
+    snapshot,
+)
 
 __all__ = [
     "DataSource",
@@ -34,6 +42,7 @@ __all__ = [
     "SourceLoadError",
     "UnknownSourceError",
     "get_cls",
+    "list_deprecated",
     "list_sources",
     "register",
     "reset",

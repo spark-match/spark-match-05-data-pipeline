@@ -108,10 +108,14 @@ def test_register_duplicate_name_raises(clean_registry):
 
 
 def test_ponte_en_carrera_is_registered_at_import_time():
-    """Importing src.sources must register all bundled sources."""
+    """Importing src.sources must register all bundled sources.
+
+    Note: PEC is marked deprecated, so it appears only when explicitly
+    requested via include_deprecated=True (see test_list_sources_hides_deprecated_by_default).
+    """
     import src.sources  # noqa: F401
 
-    assert "ponte_en_carrera" in list_sources()
+    assert "ponte_en_carrera" in list_sources(include_deprecated=True)
 
 
 def test_ponte_en_carrera_resolves_to_correct_class():
@@ -119,3 +123,32 @@ def test_ponte_en_carrera_resolves_to_correct_class():
     from src.sources.ponte_en_carrera import PonteEnCarreraSource
 
     assert get_cls("ponte_en_carrera") is PonteEnCarreraSource
+
+
+def test_list_sources_hides_deprecated_by_default():
+    """PEC is marked deprecated; it must not appear in the default list."""
+    from src.sources import list_deprecated, list_sources
+
+    active = list_sources()
+    deprecated = list_deprecated()
+    assert "ponte_en_carrera" in deprecated
+    assert "ponte_en_carrera" not in active
+    assert set(active).isdisjoint(set(deprecated))
+
+
+def test_list_sources_include_deprecated_returns_all():
+    """With include_deprecated=True, PEC is included alongside active sources."""
+    from src.sources import list_sources
+
+    with_deprecated = list_sources(include_deprecated=True)
+    without_deprecated = list_sources()
+    assert "ponte_en_carrera" in with_deprecated
+    assert len(with_deprecated) >= len(without_deprecated)
+
+
+def test_list_deprecated_returns_sorted_deprecated_names():
+    from src.sources import list_deprecated
+
+    deprecated = list_deprecated()
+    assert deprecated == sorted(deprecated)
+    assert "ponte_en_carrera" in deprecated

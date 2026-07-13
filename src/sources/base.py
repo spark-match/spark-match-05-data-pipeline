@@ -60,9 +60,18 @@ class DataSource(ABC):
         - `run()`: default orchestrator (fetch -> snapshot -> persist -> load).
         - `_persist(downloaded)`: move to `data_dir / name / <filename>`.
         - `_snapshot(downloaded)`: copy to `snapshots / name / raw_<ts>.<ext>`.
+
+    Subclasses may define:
+        - `deprecated` (class var, default False): if True, the source is
+          excluded from `registry.list_sources()` by default and the CLI
+          prints a warning before invoking it. Deprecated sources typically
+          have a `fetch()` that raises `SourceFetchError` explaining why
+          (e.g., upstream portal decommissioned), but keep `load()` working
+          so any historical data already persisted can still be read.
     """
 
     name: str = ""
+    deprecated: bool = False
 
     def __init__(
         self,
