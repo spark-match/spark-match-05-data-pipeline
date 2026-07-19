@@ -162,3 +162,15 @@ logs/
 # -----------------------------------------------------------------------------
 .cache/
 .parquet-cache/
+
+# -----------------------------------------------------------------------------
+# Excepciones: datasets versionados de este repo
+# -----------------------------------------------------------------------------
+# La regla `*.csv` de arriba es el estandar de la org, pero este repo SI versiona
+# su dataset y los snapshots (ver `Diccionario de datos.md`). Sin estas
+# excepciones, `git add` ignoraria en silencio los outputs del pipeline.
+!data/features.csv
+!data/filtered.csv
+!data/riasec_tags.csv
+!data/riasec_validation_sample.csv
+!snapshots/**/*.csv
