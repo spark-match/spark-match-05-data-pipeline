@@ -43,7 +43,8 @@ ENV/
 # uv (package manager)
 # -----------------------------------------------------------------------------
 .uv/
-uv.lock
+# NOTE: uv.lock IS committed — required for reproducible CI builds (uv sync --frozen).
+# Pipeline workflows use `uv sync --frozen` which requires uv.lock in the repo.
 
 # -----------------------------------------------------------------------------
 # Testing
@@ -116,11 +117,25 @@ data/processed/
 data/interim/
 data/external/
 data/.gitkeep
+data/sources/                          # Per-source DVC-tracked outputs
+data/canonical/                        # Merged canonical datasets
+data/corpus.jsonl                      # RAG corpus (DVC-tracked)
+snapshots/
 *.csv
 *.parquet
 *.json.gz
 !data/**/*.example.csv
 !configs/*.example.json
+!data/filtered.csv                      # Legacy files committed pre-DVC (will be removed in Phase 0)
+!data/features.csv
+!data/feature_config.json
+!data/ponte_en_carrera/raw.xlsx          # PEC source raw, tracked pre-DVC (will be DVC-tracked in Phase 2)
+
+# DVC
+.dvc/cache/                            # Local DVC cache (data lives in S3 remote)
+.dvc/tmp/
+.dvcignore                             # Tracked in git
+!uv.lock                                # uv.lock IS tracked (reproducible builds)
 
 # -----------------------------------------------------------------------------
 # Database local (sqlite, duckdb)

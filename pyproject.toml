@@ -1,0 +1,130 @@
+[project]
+name = "spark-match-data-pipeline"
+version = "0.1.0"
+description = "CareerMatch Peru - Data pipeline (ingestion, cleaning, feature engineering, corpus building for RAG)"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+authors = [
+    { name = "Spark Match Team", email = "data-engineering@spark-match.local" },
+]
+keywords = ["rag", "data-pipeline", "dvc", "etl", "peru", "education"]
+
+# Runtime dependencies - all latest stable as of July 2026
+dependencies = [
+    # Data manipulation
+    "pandas>=3.0.3,<3.1.0",                  # 3.0.4 yanked due to datetime segfaults
+    "openpyxl>=3.1.5,<4.0.0",               # Excel I/O
+    "pyarrow>=19.0.0,<20.0.0",              # Parquet I/O for canonical datasets
+    "pyyaml>=6.0.2,<7.0.0",                  # YAML parsing (params, sources_registry)
+
+    # Data validation
+    "pydantic>=2.13.4,<3.0.0",
+
+    # Web scraping (Ponte en Carrera)
+    "selenium>=4.34.0,<5.0.0",
+    "webdriver-manager>=4.0.2,<5.0.0",       # Auto-manages chromedriver
+
+    # Data version control
+    "dvc[s3]>=3.67.1,<4.0.0",                # boto3 comes as transitive dep
+    
+    # LLM tagging (RIASEC)
+    "langchain-aws>=1.6.1,<2.0.0",
+
+    # Configuration
+    "python-dotenv>=1.1.0,<2.0.0",
+]
+
+# -----------------------------------------------------------------------------
+# Optional dependency groups (NOT installed by default)
+# -----------------------------------------------------------------------------
+# These groups use library versions that are not yet aligned with pandas 3.x.
+# They are installed only when explicitly needed via `uv sync --extra ml` or
+# `uv sync --extra quality`. See INGESTION.md §Phase 4 and §9 for context.
+
+[project.optional-dependencies]
+# Data quality validations (Phase 2). Compatible with pandas 3.
+quality = [
+    "great-expectations>=1.0.0,<2.0.0",
+]
+# ML experiment tracking (Phase 4).
+# NOTE: mlflow 3.x currently pins pandas<3. When mlflow adds pandas 3 support,
+# uncomment the block below and remove this note.
+# ml = [
+#     "mlflow>=3.13.0,<4.0.0",
+# ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1,<9.0.0",
+    "pytest-cov>=6.1.0,<7.0.0",
+    "ruff>=0.15.21,<0.16.0",
+    "moto[s3]>=5.0.20,<6.0.0",             # AWS mocks for local testing
+]
+
+[project.urls]
+Homepage = "https://github.com/spark-match/spark-match-05-data-pipeline"
+
+# -----------------------------------------------------------------------------
+# uv configuration
+# -----------------------------------------------------------------------------
+[tool.uv]
+managed = true
+package = false                          # Application project, not a library
+
+# -----------------------------------------------------------------------------
+# pytest configuration (test files share the name of the module they cover)
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+]
+
+# -----------------------------------------------------------------------------
+# ruff configuration (linter + formatter, replaces flake8)
+# -----------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [
+    ".venv",
+    "data",
+    "snapshots",
+    ".dvc",
+]
+
+[tool.ruff.lint]
+# Default rules + extras we care about
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort (import sorting)
+    "B",      # flake8-bugbear (likely bugs)
+    "UP",     # pyupgrade (modern syntax)
+    "N",      # pep8-naming
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific rules
+    "TID",    # tidy imports
+]
+ignore = [
+    "E501",   # line length handled by formatter
+    "B008",   # function call in default argument (common in pydantic)
+    "RUF012", # mutable class attributes (pydantic pattern)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]                      # assert False is OK in tests
+"src/build_corpus.py" = ["E501"]           # long Spanish/English strings OK
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

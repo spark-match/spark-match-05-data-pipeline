@@ -1,0 +1,80 @@
+# =============================================================================
+# DVC pipeline for spark-match-05-data-pipeline
+# =============================================================================
+# Generated for INGESTION.md Phase 2. The pipeline has three stages:
+#
+#   1. ingest    - Pull raw data from upstream sources (Ponte en Carrera for now)
+#   2. clean     - Clean and standardize columns from raw data
+#   3. features  - Engineer features and produce the canonical feature dataset
+#
+# Stages currently declare `deps` but NOT `outs`. Rationale: data files
+# (`data/ponte_en_carrera/raw.xlsx`, `data/filtered.csv`, `data/features.csv`,
+# `data/feature_config.json`) are still tracked in git as legacy pre-DVC
+# files (see .gitignore whitelist). Migrating them to DVC-managed output
+# (`git rm --cached` + `dvc add`) is deferred to Phase 3, when the S3 remote
+# is configured and `dvc push/pull` becomes part of the deploy contract.
+#
+# Until then:
+#   - `dvc dag` shows the dependency graph (cmd + deps only).
+#   - `dvc repro` will execute every stage every time (no cache to compare
+#     against). For local iteration this is fine; in CI we'll either
+#     freeze stages or add a real cache.
+#   - `dvc status` reports "always changed" since there is no run cache.
+#
+# Commands:
+#   uv run dvc dag                    # Show pipeline structure
+#   uv run dvc status                 # Show stage staleness
+#   uv run dvc repro                  # Run all stages
+#   uv run dvc repro clean features   # Skip ingest (needs Chrome + browser)
+#
+# All commands run via `uv run` to use the locked dependencies from uv.lock.
+# =============================================================================
+
+stages:
+  ingest:
+    desc: >-
+      DEPRECATED (2026-07-12): MINEDU is decommissioning the
+      ponteencarrera.minedu.gob.pe portal; the upstream returns HTTP 500.
+      The Python source raises SourceFetchError on fetch(). Stage is
+      marked frozen so `dvc repro` skips it automatically. Run
+      `dvc repro clean features` to reproduce downstream stages against
+      the historical raw.xlsx committed to git. Replacement investigation
+      tracked in src/sources/README.md.
+    cmd: uv run python -m src.ingestion ponte_en_carrera
+    frozen: true
+    deps:
+      - src/__init__.py
+      - src/config.py
+      - src/ingestion.py
+      - src/sources/__init__.py
+      - src/sources/base.py
+      - src/sources/exceptions.py
+      - src/sources/ponte_en_carrera.py
+      - src/sources/registry.py
+
+  clean:
+    desc: >-
+      Clean and standardize columns from the raw PEC data.
+      Outputs the filtered dataset to data/filtered.csv.
+    cmd: uv run python src/data_clean.py
+    deps:
+      - data/ponte_en_carrera/raw.xlsx
+      - src/data_clean.py
+
+  features:
+    desc: >-
+      Engineer features (imputation, normalization) and produce the
+      canonical feature dataset at data/features.csv.
+    cmd: uv run python src/feature_engineering.py
+    deps:
+      - data/filtered.csv
+      - src/feature_engineering.py
+
+  riasec:
+    desc: >-
+      Assign RIASEC profiles to unique careers from the engineered
+      feature dataset.
+    cmd: uv run python src/riasec_tagging.py
+    deps:
+      - data/features.csv
+      - src/riasec_tagging.py
