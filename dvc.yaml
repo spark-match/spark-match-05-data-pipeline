@@ -69,3 +69,12 @@ stages:
     deps:
       - data/filtered.csv
       - src/feature_engineering.py
+
+  riasec:
+    desc: >-
+      Assign RIASEC profiles to unique careers from the engineered
+      feature dataset.
+    cmd: uv run python src/riasec_tagging.py
+    deps:
+      - data/features.csv
+      - src/riasec_tagging.py
