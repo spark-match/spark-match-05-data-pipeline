@@ -1,0 +1,24 @@
+schema: '2.0'
+stages:
+  clean:
+    cmd: uv run python src/data_clean.py
+    deps:
+    - path: data/ponte_en_carrera/raw.xlsx
+      hash: md5
+      md5: 6e17b78ea2cc3647deb7399d12ff8613
+      size: 404679
+    - path: src/data_clean.py
+      hash: md5
+      md5: d23ca74b118abba32ea8398083d103fa
+      size: 4063
+  features:
+    cmd: uv run python src/feature_engineering.py
+    deps:
+    - path: data/filtered.csv
+      hash: md5
+      md5: 27014d4d5f8639760814887e0193f844
+      size: 904912
+    - path: src/feature_engineering.py
+      hash: md5
+      md5: 7d0b756a332bc92fedd0d775e5bcc750
+      size: 8834

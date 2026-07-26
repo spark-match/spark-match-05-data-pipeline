@@ -47,7 +47,8 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 # ChatBedrock uses the raw Bedrock model / inference-profile id (no `anthropic.`
 # prefix). Same format the agent uses in `08-deep-agent`.
 BEDROCK_MODEL_ID = os.getenv(
-    "BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514"
+    "BEDROCK_MODEL_ID",
+    "us.anthropic.claude-sonnet-4-20250514-v1:0"
 )
 
 MAX_RETRIES = 3
@@ -86,6 +87,7 @@ SEED_EXAMPLES = [
 # Functions
 # -----------------------------------------------------------------------------
 
+print("BEDROCK_MODEL_ID =", BEDROCK_MODEL_ID)
 
 def build_llm(model_id: str | None = None):
     """
