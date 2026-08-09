@@ -10,8 +10,17 @@
 #   Miembros: FabiTaparaQuispe, ahincho, nikolaiasencios
 #
 # Paths criticos (governance): @spark-match/product-owners
+#   Miembros: dbarretol, FabiTaparaQuispe, ahincho
+#
+# Nota: el autor del PR no puede aprobar su propio PR, ni siquiera siendo
+# CODE OWNER (regla de GitHub).
 #
 # Convencion: explicit paths, no catch-all.
+#
+# Sin catch-all, lo que NO aparece abajo no tiene code owner y por tanto no
+# exige revision de nadie. Por eso la lista incluye explicitamente los ficheros
+# que definen el pipeline: si manana se anade otro en la raiz, hay que anadirlo
+# aqui tambien o entrara sin revision obligatoria.
 
 /decisions/                                @spark-match/product-owners
 /onboarding/                               @spark-match/product-owners
@@ -24,6 +33,18 @@
 /data/                                     @spark-match/ai-devs
 /snapshots/                                @spark-match/ai-devs
 /src/                                      @spark-match/ai-devs
+/tests/                                    @spark-match/ai-devs
 
-/Diccionario de datos.md                   @spark-match/ai-devs
-/requirements.txt                          @spark-match/ai-devs
+# Dependencias. El repo migro de pip a uv (PR #4), asi que ya no hay
+# requirements.txt: lo que hay que vigilar es el par pyproject + lock.
+/pyproject.toml                            @spark-match/ai-devs
+/uv.lock                                   @spark-match/ai-devs
+
+# Definicion del pipeline reproducible.
+/.dvc/                                     @spark-match/ai-devs
+/dvc.yaml                                  @spark-match/ai-devs
+/dvc.lock                                  @spark-match/ai-devs
+
+# Scripts de evaluacion y QA que viven en la raiz.
+/eval_recomendador.py                      @spark-match/ai-devs
+/qa_check_features.py                      @spark-match/ai-devs
