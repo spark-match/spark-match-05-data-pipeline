@@ -1,12 +1,32 @@
-# data_pipeline
+# spark-match-05-data-pipeline
 
-Este módulo contiene todo el flujo de datos de CareerMatch Perú, desde la descarga de la información oficial de Ponte en Carrera hasta la generación de variables listas para el motor de recomendación.
+Pipeline de datos de **Spark Match**: desde el catálogo oficial de Ponte en
+Carrera (MINEDU) hasta el dataset que consume el motor de recomendación del
+agente (`spark-match-07-deep-agent`).
+
+Las etapas están declaradas en `dvc.yaml` y se reproducen con
+`uv run dvc repro`.
+
+> ### ⚠️ La ingesta está congelada
+>
+> MINEDU retiró el portal `ponteencarrera.minedu.gob.pe` en julio de 2026 y el
+> upstream devuelve HTTP 500. La etapa `ingest` está marcada `frozen: true` en
+> DVC y `PonteEnCarreraSource.fetch()` lanza `SourceFetchError`.
+>
+> Las etapas siguientes se reproducen contra el `raw.xlsx` histórico versionado
+> en git:
+>
+> ```bash
+> uv run dvc repro clean features riasec
+> ```
+>
+> Actualizar el catálogo requiere una fuente nueva. Ver `src/sources/README.md`.
 
 ## Flujo de procesamiento
 
-### 1. ingestion.py
+### 1. ingestion.py — congelada
 
-Obtiene automáticamente la base de datos desde el portal Ponte en Carrera utilizando Selenium.
+Descargaba la base desde el portal Ponte en Carrera con Selenium.
 
 Funciones principales:
 
@@ -102,7 +122,28 @@ En cada ejecución se generan:
 
 Objetivo:
 
-Construir un dataset reproducible y preparado para el motor de scoring de CareerMatch.
+Construir un dataset reproducible y preparado para el motor de scoring.
+
+---
+
+### 4. riasec_tagging.py
+
+Asigna un perfil RIASEC de tres letras a cada carrera única del dataset,
+usando un LLM en AWS Bedrock — el mismo cliente `ChatBedrock` que usa el
+agente, para compartir una sola ruta de autenticación y un solo formato de
+id de modelo.
+
+Cada fila queda marcada con su procedencia en la columna `riasec_source`, de
+modo que una etiqueta generada por el modelo nunca se confunde con una
+validada a mano. Las carreras que el modelo no logra resolver se marcan como
+pendientes en lugar de recibir una etiqueta inventada.
+
+Salida: `data/riasec_tags.csv` (554 carreras etiquetadas).
+
+Objetivo:
+
+Dar al motor de scoring el eje de afinidad vocacional, que es el criterio de
+mayor peso del ranking.
 
 ---
 
@@ -110,9 +151,10 @@ Construir un dataset reproducible y preparado para el motor de scoring de Career
 
 ### Datos
 
-* data/raw.xlsx
-* data/filtered.csv
-* data/features.csv
+* data/raw.xlsx — descarga original (histórica; la ingesta está congelada)
+* data/filtered.csv — limpio y estandarizado
+* data/features.csv — 6.208 filas carrera × institución, con features normalizadas
+* data/riasec_tags.csv — 554 carreras con perfil RIASEC
 
 ### Configuración
 
@@ -129,9 +171,20 @@ Construir un dataset reproducible y preparado para el motor de scoring de Career
 ## Consideraciones
 
 * Los ingresos corresponden a información reportada por Ponte en Carrera.
-* Los indicadores pueden actualizarse cuando el portal publique nuevas versiones.
+* El portal de origen ya no está disponible: los datos son una foto histórica, no una fuente viva.
 * Las imputaciones se encuentran identificadas mediante flags para facilitar auditoría y monitoreo.
 * Los snapshots permiten reproducir exactamente los resultados obtenidos por una versión específica del sistema.
 
-Este pipeline constituye la base de datos versionada utilizada por el motor de recomendación de CareerMatch Perú.
+## Quién consume esto
+
+El agente (`spark-match-07-deep-agent`) lleva el catálogo dentro de su imagen y
+lo puntúa con `src/tools/recommendation/scoring.py`, que pondera cuatro
+criterios: afinidad RIASEC (0.50), ingreso (0.20), accesibilidad de admisión
+(0.20) y costo (0.10). La duración se calcula aquí pero **no** entra en el
+ranking.
+
+El scoring normaliza contra percentiles 5 y 95 del dataset, usando solo las
+filas con medición real — por eso las banderas `*_imputed_flag` que produce
+este pipeline importan: permiten excluir las medianas de familia, que
+comprimen la distribución.
 
