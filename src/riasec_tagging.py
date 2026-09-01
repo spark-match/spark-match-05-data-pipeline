@@ -6,7 +6,7 @@ gap: it tags each of the ~554 unique careers once (not the 6,208 career x
 institution rows) and leaves the join to the caller.
 
 Uses ``langchain_aws.ChatBedrock`` (same Bedrock client as the agent in
-``08-deep-agent``) so the team shares one auth path and one model-id format.
+``07-deep-agent``) so the team shares one auth path and one model-id format.
 """
 
 from itertools import permutations
@@ -45,7 +45,7 @@ VALIDATION_SAMPLE_FILE = PROJECT_ROOT / "data" / "riasec_validation_sample.csv"
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
 # ChatBedrock uses the raw Bedrock model / inference-profile id (no `anthropic.`
-# prefix). Same format the agent uses in `08-deep-agent`.
+# prefix). Same format the agent uses in `07-deep-agent`.
 BEDROCK_MODEL_ID = os.getenv(
     "BEDROCK_MODEL_ID",
     "us.anthropic.claude-sonnet-4-20250514-v1:0"
@@ -69,7 +69,7 @@ SYSTEM_PROMPT = (
     "detalle)."
 )
 
-# Seed examples reused from the agent catalog (repo 08-deep-agent).
+# Seed examples reused from the agent catalog (repo 07-deep-agent).
 SEED_EXAMPLES = [
     ("Ciencias de la Computación", "Tecnología", "IRC"),
     ("Medicina", "Salud", "ISR"),
