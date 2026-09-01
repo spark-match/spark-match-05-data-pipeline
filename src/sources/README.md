@@ -97,7 +97,7 @@ fields is unlikely; a multi-source aggregator is more realistic.
 - **What's likely there**: Scholarship program data (Beca 18, etc.),
   including lists of eligible institutions and careers.
 - **Pros**: Already focused on education pathways; would integrate well
-  with CareerMatch's user value prop.
+  with Spark Match's user value prop.
 - **Cons**: Scholarship-focused, not a general career catalog.
 
 ---
